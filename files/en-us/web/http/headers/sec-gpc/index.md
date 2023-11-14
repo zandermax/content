@@ -50,9 +50,10 @@ The user's GPC preference can also be read from JavaScript using the {{domxref("
 navigator.globalPrivacyControl; // "false" or "true"
 ```
 
+<!--
 ## Specifications
 
-{{Specifications}}
+{{Specifications}} -->
 
 ## Browser compatibility
 
