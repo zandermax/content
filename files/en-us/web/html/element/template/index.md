@@ -7,17 +7,100 @@ browser-compat: html.elements.template
 
 {{HTMLSidebar}}
 
-The **`<template>`** [HTML](/en-US/docs/Web/HTML) element is a mechanism for holding {{Glossary("HTML")}} that is not to be rendered immediately when a page is loaded but may be instantiated subsequently during runtime using JavaScript.
+The **`<template>`** [HTML](/en-US/docs/Web/HTML) element is a mechanism for holding {{Glossary("HTML")}} that either:
 
-Think of a template as a content fragment that is being stored for subsequent use in the document. While the parser does process the contents of the **`<template>`** element while loading the page, it does so only to ensure that those contents are valid; the element's contents are not rendered, however.
+- is not rendered immediately when a page is loaded, and may be instantiated subsequently during runtime using JavaScript
+- or will have its content parsed and a shadow DOM created with the resulting content rendered in the parent element, when used to create a [declarative shadow DOM](#declarative-shadow-dom).
+
+When it is not being used to create a declarative shadow DOM, it may be helpful to think of a template as a content fragment that is being stored for subsequent use in the document. While the parser does process the contents of the **`<template>`** element while loading the page, by default it does so only to ensure that those contents are valid. The element's contents are not rendered unless the `shadowrootmode` attribute is set to a valid value (and the parent element is a [valid shadow host element](/en-US/docs/Web/API/Element/attachShadow#elements_you_can_attach_a_shadow_to)), in which case a shadow root is created and the contents of the **`<template>`** element will be rendered in the created shadow DOM.
 
 ## Attributes
 
-The only standard attributes that the `<template>` element supports are the [global attributes](/en-US/docs/Web/HTML/Global_attributes).
+This element includes the [global attributes](/en-US/docs/Web/HTML/Global_attributes).
 
-In Chromium-based browsers, the `<template>` element also supports a non-standard [`shadowrootmode` attribute](https://github.com/mfreed7/declarative-shadow-dom/blob/master/README.md#syntax), as part of an experimental ["Declarative Shadow DOM"](https://developer.chrome.com/articles/declarative-shadow-dom/) proposal. In supporting browsers, a `<template>` element with the `shadowrootmode` attribute is detected by the HTML parser and immediately applied as the shadow root of its parent element. `shadowrootmode` can take a value of `open` or `closed`; these are equivalent to the `open` and `closed` values of the {{domxref("Element.attachShadow()")}} `mode` option.
+- `shadowrootmode`
 
-Also, the corresponding {{domxref("HTMLTemplateElement")}} interface includes a standard {{domxref("HTMLTemplateElement.content", "content")}} property (without an equivalent content/markup attribute). This `content` property is read-only and holds a {{domxref("DocumentFragment")}} that contains the DOM subtree represented by the template. Be careful when using the `content` property because the returned `DocumentFragment` can exhibit unexpected behavior. For more details, see the [Avoiding DocumentFragment pitfalls](#avoiding_documentfragment_pitfalls) section below.
+  - : This [enumerated](/en-US/docs/Glossary/Enumerated) attribute specifies when to create a declarative shadow root, with the value being equivalent to the {{domxref("Element.attachShadow")}} `mode` option:
+
+    - `open`: The template element represents an open declarative shadow root.
+    - `closed`: The template element represents a closed declarative shadow root.
+   
+- `shadowrootdelegatesfocus`
+  - : This [boolean](/en-US/docs/Glossary/Boolean) attribute is the equivalent to specifying the {{domxref("Element.attachShadow")}} `delegatesFocus` option when attaching a shadow DOM.
+
+## Notes on the `.content` value
+
+The corresponding {{domxref("HTMLTemplateElement")}} interface includes a standard {{domxref("HTMLTemplateElement.content", "content")}} property (without an equivalent content/markup attribute). This `content` property is read-only and holds a {{domxref("DocumentFragment")}} that contains the DOM subtree represented by the template (except when creating a declarative shadow DOM, see next point below).
+
+It is important to note the following behaviors of the return value of `content`:
+
+- When `shadowrootmode` is set to a valid value and the parent element is a [valid shadow host element](/en-US/docs/Web/API/Element/attachShadow#elements_you_can_attach_a_shadow_to):
+  - The `content` property will return `null` during parsing.
+  - Once parsed, the **`<template>`** element is removed, meaning `content` cannot be used after parsing.
+- When not using a declarative shadow DOM, it is still important to understand how the `DocumentFragment` returned by the `content` property can exhibit unexpected behavior. For more details, see the [Avoiding DocumentFragment pitfalls](#avoiding_documentfragment_pitfalls) section below.
+
+## Declarative Shadow DOM
+
+To make creating shadow DOMs easier, there are attributes that will automate the process of creating and attaching a shadow root. By specifying `shadowrootmode` and optionally `shadowrootdelegatesfocus`, the DOM will be rendered as if the {{domxref("Element.attachShadow", "attachShadow()")}} method was called with the equivalent values.
+
+For example, declaring a **`<template>`** with the following attributes:
+
+```html
+<template shadowrootmode="open" shadowrootdelegatesfocus>
+```
+
+will result in the equivalent of the following `attachShadow()` method being called on its parent elemet:
+
+```js
+attachShadow({ mode = "open", delegatesFocus = true });
+```
+
+Furthermore, given the following HTML:
+
+```html
+<host-element>
+    <template shadowrootmode="open">
+        <style>shadow styles</style>
+        <h2>Shadow Content</h2>
+        <slot></slot>
+    </template>
+    <h2>Light content</h2>
+</host-element>
+```
+
+the end result will be:
+
+```html
+<host-element>
+  #shadow-root (open)
+    <style>shadow styles</style>
+    <h2>Shadow Content</h2>
+    <slot>
+        ↳ <h2> reveal
+    </slot>
+  <h2>Light content</h2>
+</host-element>
+```
+
+which is the eqivalent to the rendered result of the folloing snippet that uses an inline {{domxref("Element.script", "script")}} element to attach the shadow root:
+
+```html
+<host-element>
+    <template>
+        <style>shadow styles</style>
+        <h2>Shadow Content</h2>
+        <slot></slot>
+    </template>
+    <script>
+      var template = document.currentScript.previousElementSibling;
+      var shadowRoot = template.parentElement.attachShadow({mode:"open"});
+      shadowRoot.appendChild(template.content);
+      template.remove();
+      document.currentScript.remove();
+    </script>
+    <h2>Light content</h2>
+</host-element>
+```
 
 ## Examples
 
